@@ -21,11 +21,11 @@
 #include <string>
 #include <utility>
 
+#include "btree_test.h"
 #include <gtest/gtest.h>
 #include <btree/safe_btree_map.h>
 #include <btree/safe_btree_set.h>
 
-#include "btree_test.h"
 
 class UnsafeArena;
 

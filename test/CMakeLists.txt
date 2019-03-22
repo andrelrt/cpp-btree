@@ -25,6 +25,8 @@ ExternalProject_Get_Property(gtest source_dir binary_dir)
 # Create a libgtest target to be used as a dependency by test programs
 add_library(libgtest IMPORTED STATIC GLOBAL)
 add_dependencies(libgtest gtest)
+add_library(libgtest_main IMPORTED STATIC GLOBAL)
+add_dependencies(libgtest_main gtest)
 
 # Set libgtest properties
 if(MSVC)
@@ -35,6 +37,10 @@ set_target_properties(libgtest PROPERTIES
 else()
 set_target_properties(libgtest PROPERTIES
     "IMPORTED_LOCATION" "${binary_dir}/googlemock/gtest/libgtest.a"
+    "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}"
+)
+set_target_properties(libgtest_main PROPERTIES
+    "IMPORTED_LOCATION" "${binary_dir}/googlemock/gtest/libgtest_main.a"
     "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}"
 )
 endif()
@@ -70,6 +76,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     gflags
     cppbtree
     libgtest
+    libgtest_main
 )
 
 if(CMAKE_VERSION VERSION_LESS "3.9")

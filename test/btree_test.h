@@ -27,9 +27,7 @@
 #include <utility>
 #include <vector>
 
-#include <gtest/gtest.h>
 #include <gflags/gflags.h>
-
 //#include <btree/detail/btree_container.h>
 
 DECLARE_int32(test_values);
@@ -61,6 +59,8 @@ struct remove_const<std::pair<T, U> > {
 };
 
 } // namespace std
+
+#include <gtest/gtest.h>
 
 namespace btree {
 
@@ -494,7 +494,7 @@ class multi_checker : public base_checker<TreeType, CheckerType> {
   }
 };
 
-char* GenerateDigits(char buf[16], int val, int maxval) {
+inline char* GenerateDigits(char buf[16], int val, int maxval) {
   EXPECT_LE(val, maxval);
   int p = 15;
   buf[p--] = 0;
@@ -545,7 +545,7 @@ struct Generator<std::pair<T, U> > {
 };
 
 // Generate values for our tests and benchmarks. Value range is [0, maxval].
-const std::vector<int>& GenerateNumbers(int n, int maxval) {
+inline const std::vector<int>& GenerateNumbers(int n, int maxval) {
   static std::vector<int> values;
   static std::set<int> unique_values;
 
