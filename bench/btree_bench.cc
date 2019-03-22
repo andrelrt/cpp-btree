@@ -22,17 +22,18 @@
 #include <sys/time.h>
 #include <type_traits>
 #include <vector>
+#include <iostream>
 
-#include "gflags/gflags.h"
-#include "btree_map.h"
-#include "btree_set.h"
-#include "btree_test.h"
+#include <gflags/gflags.h>
+#include <btree/btree_map.h>
+#include <btree/btree_set.h>
 
+DEFINE_int32(test_values, 10000, "The number of values to use for tests.");
+DEFINE_int32(benchmark_values, 1000000, "The number of values to use for benchmarks.");
 DEFINE_int32(test_random_seed, 123456789, "Seed for srand()");
 DEFINE_int32(benchmark_max_iters, 10000000, "Maximum test iterations");
 DEFINE_int32(benchmark_min_iters, 100, "Minimum test iterations");
-DEFINE_int32(benchmark_target_seconds, 1,
-	     "Attempt to benchmark for this many seconds");
+DEFINE_int32(benchmark_target_seconds, 1, "Attempt to benchmark for this many seconds");
 
 using std::allocator;
 using std::less;
@@ -45,8 +46,62 @@ using std::set;
 using std::string;
 using std::vector;
 
+namespace std {
+
+// Provide operator<< support for std::pair<T, U>.
+template <typename T, typename U>
+ostream& operator<<(ostream &os, const std::pair<T, U> &p) {
+  os << "(" << p.first << "," << p.second << ")";
+  return os;
+}
+
+// Provide pair equality testing that works as long as x.first is comparable to
+// y.first and x.second is comparable to y.second. Needed in the test for
+// comparing std::pair<T, U> to std::pair<const T, U>.
+template <typename T, typename U, typename V, typename W>
+bool operator==(const std::pair<T, U> &x, const std::pair<V, W> &y) {
+  return x.first == y.first && x.second == y.second;
+}
+
+// Partial specialization of remove_const that propagates the removal through
+// std::pair.
+template <typename T, typename U>
+struct remove_const<pair<T, U> > {
+  typedef pair<typename remove_const<T>::type,
+               typename remove_const<U>::type> type;
+};
+
+} // namespace std
+
 namespace btree {
 namespace {
+
+// Select the first member of a pair.
+template <class _Pair>
+struct select1st : public std::unary_function<_Pair, typename _Pair::first_type> {
+  const typename _Pair::first_type& operator()(const _Pair& __x) const {
+    return __x.first;
+  }
+};
+
+// Utility class to provide an accessor for a key given a value. The default
+// behavior is to treat the value as a pair and return the first element.
+template <typename K, typename V>
+struct KeyOfValue {
+  typedef select1st<V> type;
+};
+
+template <typename T>
+struct identity {
+  inline const T& operator()(const T& t) const { return t; }
+};
+
+// Partial specialization of KeyOfValue class for when the key and value are
+// the same type such as in set<> and btree_set<>.
+template <typename K>
+struct KeyOfValue<K, K> {
+  typedef identity<K> type;
+};
 
 struct RandGen {
   typedef ptrdiff_t result_type;
@@ -150,7 +205,7 @@ void BenchmarkRun::Run() {
     }
     iters = min(iters, FLAGS_benchmark_max_iters);
   }
-  fprintf(stdout, "%s\t%qu\t%qu\n", 
+  fprintf(stdout, "%s\t%lu\t%i\n", 
 	  benchmark_name, 
 	  accum_micros * 1000 / iters, 
 	  iters);
@@ -161,6 +216,88 @@ void BenchmarkRun::Run() {
 template <typename T>
 void sink(const T& t0) {
   volatile T t = t0;
+}
+template <typename K>
+struct Generator {
+  int maxval;
+  Generator(int m)
+      : maxval(m) {
+  }
+  K operator()(int i) const {
+    return i;
+  }
+};
+
+char* GenerateDigits(char buf[16], int val, int maxval) {
+  int p = 15;
+  buf[p--] = 0;
+  while (maxval > 0) {
+    buf[p--] = '0' + (val % 10);
+    val /= 10;
+    maxval /= 10;
+  }
+  return buf + p + 1;
+}
+template <>
+struct Generator<std::string> {
+  int maxval;
+  Generator(int m)
+      : maxval(m) {
+  }
+  std::string operator()(int i) const {
+    char buf[16];
+    return GenerateDigits(buf, i, maxval);
+  }
+};
+
+template <typename T, typename U>
+struct Generator<std::pair<T, U> > {
+  Generator<typename std::remove_const<T>::type> tgen;
+  Generator<typename std::remove_const<U>::type> ugen;
+
+  Generator(int m)
+      : tgen(m),
+        ugen(m) {
+  }
+  std::pair<T, U> operator()(int i) const {
+    return std::make_pair(tgen(i), ugen(i));
+  }
+};
+// Generate values for our tests and benchmarks. Value range is [0, maxval].
+const std::vector<int>& GenerateNumbers(int n, int maxval) {
+  static std::vector<int> values;
+  static std::set<int> unique_values;
+
+  if (values.size() < n) {
+
+    for (int i = values.size(); i < n; i++) {
+      int value;
+      do {
+        value = rand() % (maxval + 1);
+      } while (unique_values.find(value) != unique_values.end());
+
+      values.push_back(value);
+      unique_values.insert(value);
+    }
+  }
+
+  return values;
+}
+// Generates values in the range
+// [0, 4 * min(FLAGS_benchmark_values, FLAGS_test_values)]
+template <typename V>
+std::vector<V> GenerateValues(int n) {
+  int two_times_max = 2 * std::max(FLAGS_benchmark_values, FLAGS_test_values);
+  int four_times_max = 2 * two_times_max;
+  const std::vector<int> &nums = GenerateNumbers(n, four_times_max);
+  Generator<V> gen(four_times_max);
+  std::vector<V> vec;
+
+  for (int i = 0; i < n; i++) {
+    vec.push_back(gen(nums[i]));
+  }
+
+  return vec;
 }
 
 // Benchmark insertion of values into a container.

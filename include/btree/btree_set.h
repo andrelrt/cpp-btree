@@ -24,8 +24,8 @@
 #include <memory>
 #include <string>
 
-#include "btree.h"
-#include "btree_container.h"
+#include <btree/btree.h>
+#include <btree/detail/btree_container.h>
 
 namespace btree {
 

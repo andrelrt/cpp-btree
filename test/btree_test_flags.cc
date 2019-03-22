@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "gflags/gflags.h"
+#include <gflags/gflags.h>
 
 DEFINE_int32(test_values, 10000,
              "The number of values to use for tests.");

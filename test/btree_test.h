@@ -27,9 +27,8 @@
 #include <utility>
 #include <vector>
 
-#include "gtest/gtest.h"
-#include "gflags/gflags.h"
-#include "btree_container.h"
+#include <gflags/gflags.h>
+//#include <btree/detail/btree_container.h>
 
 DECLARE_int32(test_values);
 DECLARE_int32(benchmark_values);
@@ -54,12 +53,14 @@ bool operator==(const std::pair<T, U> &x, const std::pair<V, W> &y) {
 // Partial specialization of remove_const that propagates the removal through
 // std::pair.
 template <typename T, typename U>
-struct remove_const<pair<T, U> > {
+struct remove_const<std::pair<T, U> > {
   typedef pair<typename remove_const<T>::type,
                typename remove_const<U>::type> type;
 };
 
 } // namespace std
+
+#include <gtest/gtest.h>
 
 namespace btree {
 
@@ -493,7 +494,7 @@ class multi_checker : public base_checker<TreeType, CheckerType> {
   }
 };
 
-char* GenerateDigits(char buf[16], int val, int maxval) {
+inline char* GenerateDigits(char buf[16], int val, int maxval) {
   EXPECT_LE(val, maxval);
   int p = 15;
   buf[p--] = 0;
@@ -544,7 +545,7 @@ struct Generator<std::pair<T, U> > {
 };
 
 // Generate values for our tests and benchmarks. Value range is [0, maxval].
-const std::vector<int>& GenerateNumbers(int n, int maxval) {
+inline const std::vector<int>& GenerateNumbers(int n, int maxval) {
   static std::vector<int> values;
   static std::set<int> unique_values;
 
